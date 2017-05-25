@@ -67,10 +67,11 @@ Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
 
 int main() {
   uWS::Hub h;
-
+  
+  
   // MPC is initialized here!
   MPC mpc;
-
+  
   h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -91,36 +92,63 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+		  
+          // 
+          // 1) We get the data in the "world" space so we need to transform them to the car space and then we work with them
+          //   1.a) find the ptsx,ptsy vectors from the car point of view		  
+          Eigen::VectorXd ptsx_car(ptsx.size());		  
+          Eigen::VectorXd ptsy_car(ptsy.size());	
+		  double cos_psi = cos(psi);
+		  double sin_psi = sin(psi);
+		  double dx, dy;
+		  for (int i=0; i<ptsx.size(); i++){
+		    dx = (ptsx[i]-px);
+		    dy = (ptsy[i]-py);
+		    ptsx_car(i) = dx*cos_psi + dy*sin_psi;
+		    ptsy_car(i) = -dx*sin_psi + dy*cos_psi;
+		  }
+		  
+          //
+          //   1.b) find the 3ed order polynomial coeffs from the car point of view	
+          Eigen::VectorXd coeffs = polyfit(ptsx_car, ptsy_car, 3);
+		  
+          //		  
+          //   1.c) find the errors in the current car position (0,0)
+          double cte = polyeval(coeffs, 0);
+          double epsi = -atan(coeffs[1]);
 
-          /*
-          * TODO: Calculate steeering angle and throttle using MPC.
-          *
-          * Both are in between [-1, 1].
-          *
-          */
-          double steer_value;
-          double throttle_value;
+          // 
+          // 2) Calculates steeering angle and throttle using MPC
+          //   2.a) current state vector (x,y,psi,v,cte,epsi) from the car point of view	
+		  Eigen::VectorXd state(6);
+          state << 0.0, 0.0, 0.0, v, cte, epsi;
+		  
+		  //
+		  //   2.b) use the MPC to find the next state
+		  vector<double> next_state = mpc.Solve(state, coeffs);
+          double steer_value = -next_state[6]; // TODO ggg
+          double throttle_value = next_state[7];
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
           msgJson["throttle"] = throttle_value;
 
-          //Display the MPC predicted trajectory 
-          vector<double> mpc_x_vals;
-          vector<double> mpc_y_vals;
-
-          //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
-          // the points in the simulator are connected by a Green line
+          //
+		  // 3) Display the MPC predicted trajectory and the reference line
+		  //    3.a) Green line: MPC predicted trajectory 
+          vector<double> mpc_x_vals = mpc.solution_x_;
+          vector<double> mpc_y_vals = mpc.solution_y_;
 
           msgJson["mpc_x"] = mpc_x_vals;
           msgJson["mpc_y"] = mpc_y_vals;
 
-          //Display the waypoints/reference line
+          //   3.b) Yellow line: Display the waypoints/reference line 
           vector<double> next_x_vals;
           vector<double> next_y_vals;
-
-          //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
-          // the points in the simulator are connected by a Yellow line
+		  for (int i=0; i<ptsx_car.size(); i++){
+		    next_x_vals.push_back(ptsx_car(i));
+		    next_y_vals.push_back(ptsy_car(i));
+		  }
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
