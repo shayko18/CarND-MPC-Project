@@ -8,6 +8,7 @@ using CppAD::AD;
 // TODO: Set the timestep length and duration
 size_t N = 10;
 double dt = 0.1;
+double letency_val = 100;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -90,6 +91,8 @@ class FG_eval {
     fg[1 + epsi_start] = vars[epsi_start];
 	
 	//    2.b) The rest of the constraints
+	int dly = int((letency_val+1.0)/(dt*1000.0));
+	std::cout << "dly = " << dly << std::endl;
 	for (int i = 0; i < N - 1; i++) {
       // The state at time t+1 .
       AD<double> x1 = vars[x_start + i + 1];
@@ -108,8 +111,8 @@ class FG_eval {
       AD<double> epsi0 = vars[epsi_start + i];
 
       // Only consider the actuation at time t.
-      AD<double> delta0 = vars[delta_start + i];
-      AD<double> a0 = vars[a_start + i];
+      AD<double> delta0 = ((i-dly)>=0) ? vars[delta_start + i-dly] : 0.0;
+      AD<double> a0 = ((i-dly)>=0) ? vars[a_start + i-dly] : 0.0;
 
 	  // 3ed order polynomial
       AD<double> f0 = coeffs[0] + coeffs[1] * x0 + coeffs[2] * x0*x0 + coeffs[3] * x0*x0*x0;
@@ -152,10 +155,6 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   double v = state[3];
   double cte = state[4];
   double epsi = state[5];
-  
-  // TODO: Set the number of model variables (includes both states and inputs).
-  // For example: If the state is a 4 element vector, the actuators is a 2
-  // element vector and there are 10 timesteps. The number of variables is:
   
   // 
   // 1) Init the constraints and vars
