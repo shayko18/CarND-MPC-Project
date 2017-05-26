@@ -3,6 +3,98 @@ Self-Driving Car Engineer Nanodegree Program
 
 ---
 
+## 1. The Model
+
+our model uses 6 element state vector:
+
+	1,2) x,y : 2D position
+	3) v: car velocity
+	4) psi: car orientation (angle)
+	5) cte: error in the car position
+	6) epsi: error in the car orientation
+
+We use 2 actuators:
+ 
+	1) delta: steer_value
+	2) a: throttle_value
+ 
+
+The equations for the model:
+
+	x_[t+1] = x[t] + v[t] * cos(psi[t]) * dt
+	y_[t+1] = y[t] + v[t] * sin(psi[t]) * dt
+	psi_[t+1] = psi[t] + v[t] / Lf * delta[t] * dt
+	v_[t+1] = v[t] + a[t] * dt
+	cte[t+1] = f(x[t]) - y[t] + v[t] * sin(epsi[t]) * dt
+	epsi[t+1] = psi[t] - atan(f'(x[t])) + v[t] * delta[t] / Lf * dt
+
+when f(x[t]) is the reference line we want to follow. We get the reference line by fitting a 3ed order polynomial to the waypoints 
+
+Now we can set "dt" and calculate the next N times. 
+We have no N time steps (each state element will get a value for it) plus N-1 "jumps" between the times (each actuators element will get a value for it).
+Totally we have 6*N+2*(N-1) variables and 6*N constraints
+
+We define the cost function to be:
+
+	cost = sum_over_time(
+	facotor_cte * (cte^2) +                   // errors: we want cte=0, espi=0, v = ref_v
+	facotor_espi * (espi^2) + 
+	facotor_v * (v-ref_v^2) + 
+	facotor_delta * (delta^2) +               // we want small actuators
+	facotor_a * (a^2) + 
+	facotor_delta_diff * (delta_diff^2) +     // we want small change in the actuators - smooth drive
+	facotor_a_diff * (a_diff^2) + 
+	) 
+
+the different factors (the ratio between them) gives us the option to emphasize term that are more important to us then others. 
+I tried a few options and this is what I came up with:
+(1,1,1,1,1,1)
+
+Now we want to solve an optimization problem:
+
+	minimize cost function
+	s.t: our model propagation with initial values.
+	     |delta| < 25 deg for all times
+		 |a|<1 for all times		  
+we then use {delta, a} for the current time (up to the latency we have in the system) and do the same all over again in the next time we have a telemetry 
+
+
+## 2. Timestep Length and Elapsed Duration
+
+There is a tradeoff for the number of sample in the future we want to predict (N) and for the time between each sample (dt):
+N: large N is needs more computation complexity but can give better results fitting the reference line
+dt: for small dt the model is more true (linear model) but it will result in more data points for the same time duration (dt*N=T_duration)
+I played around with those parameters, and I finally choose N=10, dt=0.1 (100mSec). because the latency is 100mSec, It seems like a good practice to choose dt to be equal to 0.1Sec
+
+## 3. Polynomial Fitting and MPC Preprocessing
+
+We use a 3ed polynomial to fit the waypoints. Because all the processing is done from the car point of view, but the original waypoints and car location are given in the "world space" we need to translate it.
+The translation is very simple:
+
+	x_car_space = (x_world_space - x_of_car_world_space)*cos(psi) + (y_world_space - y_of_car_world_space)*sin(psi)
+	y_car_space = -(x_world_space - x_of_car_world_space)*sin(psi) + (y_world_space - y_of_car_world_space)*cos(psi)
+Where psi is the angle of the car in the world space.
+
+In the MPC we also save the (x,y) of the future estimations for plotting it on the simulator. 
+
+
+## 4. Model Predictive Control with Latency
+when we want to deal with the latency we can:
+
+1. drive at a lower speed - the latency will have a smaller effect
+2. update the MPC equations: 
+	a[t] will now be a[t-1] (assuming dt=latency=0.1)
+	delta will now be delta[t-1] (assuming dt=latency=0.1)
+	The equations for the model that are changed:
+
+		psi_[t+1] = psi[t] + v[t] / Lf * delta[t-1] * dt
+		v_[t+1] = v[t] + a[t-1] * dt
+		epsi[t+1] = psi[t] - atan(f'(x[t])) + v[t] * delta[t-1] / Lf * dt
+		
+		and fot t=0 we take both of them to be zero
+
+
+
 ## Dependencies
 
 * cmake >= 3.5
@@ -18,9 +110,6 @@ Self-Driving Car Engineer Nanodegree Program
 * [uWebSockets](https://github.com/uWebSockets/uWebSockets) == 0.14, but the master branch will probably work just fine
   * Follow the instructions in the [uWebSockets README](https://github.com/uWebSockets/uWebSockets/blob/master/README.md) to get setup for your platform. You can download the zip of the appropriate version from the [releases page](https://github.com/uWebSockets/uWebSockets/releases). Here's a link to the [v0.14 zip](https://github.com/uWebSockets/uWebSockets/archive/v0.14.0.zip).
   * If you have MacOS and have [Homebrew](https://brew.sh/) installed you can just run the ./install-mac.sh script to install this.
-* Fortran Compiler
-  * Mac: `brew install gcc` (might not be required)
-  * Linux: `sudo apt-get install gfortran`. Additionall you have also have to install gcc and g++, `sudo apt-get install gcc g++`. Look in [this Dockerfile](https://github.com/udacity/CarND-MPC-Quizzes/blob/master/Dockerfile) for more info.
 * [Ipopt](https://projects.coin-or.org/Ipopt)
   * Mac: `brew install ipopt`
   * Linux
