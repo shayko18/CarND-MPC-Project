@@ -50,8 +50,8 @@ We define the **cost function** to be:
 the different factors (the ratio between them) gives us the option to emphasize term that are more important to us then others. 
 I tried a few options and this is what I came up with:
 
-- without latency: (1,1,1,1,100,100)
-- with latency: (1,1,1,1,1000,1000)
+- without latency: cost function factors = (1,1,1,1,100,100)
+- with latency: cost function factors = (1,1,1,1,1000,1000)
 - the v_ref was set to 30
 
 Now we want to solve an **optimization problem**:
