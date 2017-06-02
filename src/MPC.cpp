@@ -5,10 +5,10 @@
 
 using CppAD::AD;
 
-// TODO: Set the timestep length and duration
-size_t N = 10;
-double dt = 0.1; // 0.1 is about 200 mSec in real time
-double letency_val = 100;
+// Set the timestep length and duration
+size_t N = 10;             // number of samples
+double dt = 0.1;          // 0.1 is about 200 mSec in real time
+double letency_val = 100; // in mSec
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -91,8 +91,8 @@ class FG_eval {
     fg[1 + epsi_start] = vars[epsi_start];
 	
 	//    2.b) The rest of the constraints
-	int dly = int((letency_val+1.0)/(dt*1000.0*2.0)); // ggg
-	std::cout << "dly = " << dly << std::endl;
+	int dly = int((letency_val+1.0)/(dt*2000.0));
+	//std::cout << "dly = " << dly << std::endl;
 	for (int i = 0; i < N - 1; i++) {
       // The state at time t+1 .
       AD<double> x1 = vars[x_start + i + 1];
@@ -142,8 +142,8 @@ class FG_eval {
 // MPC class definition implementation.
 //
 MPC::MPC() {
-  solution_x_.resize(N-1);
-  solution_y_.resize(N-1);
+  solution_x_.resize(N-1); // for printing the green line
+  solution_y_.resize(N-1); // for printing the green line
 }
 MPC::~MPC() {}
 
