@@ -5,7 +5,7 @@ Self-Driving Car Engineer Nanodegree Program
 
 ## 1. The Model
 
-our model uses 6 element state vector:
+our model uses 6 element **state vector**:
 
 	1,2) x,y : 2D position
 	3) v: car velocity
@@ -13,13 +13,13 @@ our model uses 6 element state vector:
 	5) cte: error in the car position
 	6) epsi: error in the car orientation
 
-We use 2 actuators:
+We use 2 **actuators**:
  
 	1) delta: steer_value
 	2) a: throttle_value
  
 
-The equations for the model:
+The **equations** for updating the model:
 
 	x_[t+1] = x[t] + v[t] * cos(psi[t]) * dt
 	y_[t+1] = y[t] + v[t] * sin(psi[t]) * dt
@@ -28,71 +28,83 @@ The equations for the model:
 	cte[t+1] = f(x[t]) - y[t] + v[t] * sin(epsi[t]) * dt
 	epsi[t+1] = psi[t] - atan(f'(x[t])) + v[t] * delta[t] / Lf * dt
 
-when f(x[t]) is the reference line we want to follow. We get the reference line by fitting a 3ed order polynomial to the waypoints 
+when f(x[t]) is the reference line we want to follow. We get the reference line by fitting a 3ed order polynomial to the waypoints.
 
-Now we can set "dt" and calculate the next N times. 
-We have no N time steps (each state element will get a value for it) plus N-1 "jumps" between the times (each actuators element will get a value for it).
+Number of **variables & constraints:**
+Using the model we can set "dt" and calculate the next N state vectors over time. 
+We have now N time steps (each state element will get a value for it) plus N-1 "jumps" between the times (each actuators element will get a value for it).
 Totally we have 6*N+2*(N-1) variables and 6*N constraints
 
-We define the cost function to be:
+We define the **cost function** to be:
 
 	cost = sum_over_time(
-	facotor_cte * (cte^2) +                   // errors: we want cte=0, espi=0, v = ref_v
-	facotor_espi * (espi^2) + 
-	facotor_v * (v-ref_v^2) + 
-	facotor_delta * (delta^2) +               // we want small actuators
-	facotor_a * (a^2) + 
-	facotor_delta_diff * (delta_diff^2) +     // we want small change in the actuators - smooth drive
-	facotor_a_diff * (a_diff^2) + 
+		facotor_cte * (cte^2) +                // errors: we want cte=0, espi=0, v=v_ref=30
+		facotor_espi * (espi^2) + 
+		facotor_v * (v-ref_v^2) + 
+		facotor_delta * (delta^2) +            // we want small actuators
+		facotor_a * (a^2) + 
+		facotor_delta_diff * (delta_diff^2) +  // we want small change in the actuators - smooth drive
+		facotor_a_diff * (a_diff^2) + 
 	) 
 
 the different factors (the ratio between them) gives us the option to emphasize term that are more important to us then others. 
 I tried a few options and this is what I came up with:
-(1,1,1,1,1,1)
 
-Now we want to solve an optimization problem:
+- without latency: (1,1,1,1,100,100)
+- with latency: (1,1,1,1,1000,1000)
+- the v_ref was set to 30
+
+Now we want to solve an **optimization problem**:
 
 	minimize cost function
 	s.t: our model propagation with initial values.
 	     |delta| < 25 deg for all times
 		 |a|<1 for all times		  
-we then use {delta, a} for the current time (up to the latency we have in the system) and do the same all over again in the next time we have a telemetry 
+we then use {delta, a} for the current time (up to the latency we have in the system) and do the same all over again in the next time we have a telemetry.
 
 
 ## 2. Timestep Length and Elapsed Duration
 
 There is a tradeoff for the number of sample in the future we want to predict (N) and for the time between each sample (dt):
-N: large N is needs more computation complexity but can give better results fitting the reference line
-dt: for small dt the model is more true (linear model) but it will result in more data points for the same time duration (dt*N=T_duration)
-I played around with those parameters, and I finally choose N=10, dt=0.1 (100mSec). because the latency is 100mSec, It seems like a good practice to choose dt to be equal to 0.1Sec
+
+**N**: Large N is needs more computation complexity but can give better results fitting the reference line. There could be also a down side in taking large N - we will look too deep into the future and try to optimize the waypoints in a far away place. We can solve it be taking different weights for different times in the cost function. The best solution will be to take "medium" size for N, so we look into the future (for smooth driving) but not too much.
+
+**dt**: For small dt, the model is more accurate (linear model) but it will result in more data points for the same time duration (dt*N=T_duration) so we get more computation complexity.
+
+I played around with those parameters, and I finally choose N=10, dt=0.1. We can see nicely on the green line that we look into the future but not too much (N), and also that the points on that green line make sence in their spacing (dt).
 
 ## 3. Polynomial Fitting and MPC Preprocessing
 
-We use a 3ed polynomial to fit the waypoints. Because all the processing is done from the car point of view, but the original waypoints and car location are given in the "world space" we need to translate it.
+We use a **3ed polynomial** to fit the waypoints. Because all the processing is done from the car point of view, but the original waypoints and car location are given in the "world space" we need to translate it.
 The translation is very simple:
 
 	x_car_space = (x_world_space - x_of_car_world_space)*cos(psi) + (y_world_space - y_of_car_world_space)*sin(psi)
 	y_car_space = -(x_world_space - x_of_car_world_space)*sin(psi) + (y_world_space - y_of_car_world_space)*cos(psi)
 Where psi is the angle of the car in the world space.
 
-In the MPC we also save the (x,y) of the future estimations for plotting it on the simulator. 
+In the MPC we also save the (x,y) of the future position estimations for plotting it on the simulator (green line).
 
 
 ## 4. Model Predictive Control with Latency
-when we want to deal with the latency we can:
+when we want to deal with the latency we will have to pay in "high frequencies": the car would have to drive slower and will be able to deal with less sharp turns.
+In order to do that:
 
-1. drive at a lower speed - the latency will have a smaller effect
-2. update the MPC equations: 
-	a[t] will now be a[t-1] (assuming dt=latency=0.1)
-	delta will now be delta[t-1] (assuming dt=latency=0.1)
+1. We will tight the constraints on the steer and throttle changes. Actually we moved the factor on this, in the cost function, from 100 to 1000 when we added the latency.
+2. update the MPC equations so the a(t), delta(t) will now influence time t+latency: 
+
+ - a[n] will now be a[n-L] 
+ - delta will now be delta[n-L]
+ - and L should represent the latency is dt units
+
 	The equations for the model that are changed:
 
-		psi_[t+1] = psi[t] + v[t] / Lf * delta[t-1] * dt
-		v_[t+1] = v[t] + a[t-1] * dt
-		epsi[t+1] = psi[t] - atan(f'(x[t])) + v[t] * delta[t-1] / Lf * dt
+		psi_[n+1] = psi[n] + v[n] / Lf * delta[n-L] * dt
+		v_[n+1] = v[n] + a[n-L] * dt
+		epsi[n+1] = psi[n] - atan(f'(x[n])) + v[n] * delta[n-L] / Lf * dt
 		
-		and fot t=0 we take both of them to be zero
+		and fot n-L<0 we take both of them to be zero
 
+In our case we tried to understand what is the value of dt in real life seconds. It looks to me (after some measurements I did on the simulator) that dt=0.1 is about 200 mSec. This is why I set L to be 0 in the case of 100mSec latency. 
 
 
 ## Dependencies
