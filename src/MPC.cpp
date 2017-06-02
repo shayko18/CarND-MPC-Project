@@ -165,7 +165,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   size_t n_constraints = 6*N; // Set the number of constraints
   size_t n_vars = n_constraints + 2*(N-1); // Set the number of model variables
   
-
+  //
   // 1.b)  vars value: Initial value of the independent variables. should be 0 besides initial state. 
   Dvector vars(n_vars);
   for (int i = 0; i < n_vars; i++) {
@@ -178,7 +178,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   vars[cte_start] = cte; 
   vars[epsi_start] = epsi; 
 
-
+  //
   //   1.c) Set lower and upper limits for variables.
   Dvector vars_lowerbound(n_vars);
   Dvector vars_upperbound(n_vars);
@@ -199,7 +199,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     vars_upperbound[i] = 1.0;
   }
   
-  
+  //
   //   1.d) Lower and upper limits for constraints.Should be 0 besides initial state.
   Dvector constraints_lowerbound(n_constraints);
   Dvector constraints_upperbound(n_constraints);

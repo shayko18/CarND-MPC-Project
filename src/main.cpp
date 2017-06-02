@@ -112,7 +112,7 @@ int main() {
 		  
           //		  
           //   1.c) find the errors in the current car position (0,0)
-          double cte = polyeval(coeffs, 0);
+          double cte = polyeval(coeffs, 0) - 0.0; 
           double epsi = -atan(coeffs[1]);
 
           // 
@@ -124,7 +124,7 @@ int main() {
 		  //
 		  //   2.b) use the MPC to find the next state
 		  vector<double> next_state = mpc.Solve(state, coeffs);
-          double steer_value = (-next_state[6])/deg2rad(25); 
+          double steer_value = (-next_state[6])/deg2rad(25);
           double throttle_value = next_state[7];
 
           json msgJson;
@@ -139,6 +139,7 @@ int main() {
           msgJson["mpc_x"] = mpc_x_vals;
           msgJson["mpc_y"] = mpc_y_vals;
 
+		  //
           //   3.b) Yellow line: Display the waypoints/reference line 
           vector<double> next_x_vals;
           vector<double> next_y_vals;
