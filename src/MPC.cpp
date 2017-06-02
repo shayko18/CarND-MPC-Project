@@ -7,7 +7,7 @@ using CppAD::AD;
 
 // TODO: Set the timestep length and duration
 size_t N = 10;
-double dt = 0.1;
+double dt = 0.1; // 0.1 is about 200 mSec in real time
 double letency_val = 100;
 
 // This value assumes the model presented in the classroom is used.
@@ -23,7 +23,7 @@ double letency_val = 100;
 const double Lf = 2.67;
 const double ref_cte = 0.0;
 const double ref_epsi = 0.0;
-const double ref_v = 40.0;
+const double ref_v = 30.0;
 
 // The solver takes all the state variables and actuator
 // variables in a singular vector. Thus, we should to establish
@@ -53,8 +53,8 @@ class FG_eval {
     const double factor_v = 1.0;
     const double factor_delta = 1.0;
     const double factor_a = 1.0;
-    const double factor_delta_diff = 111.0;
-    const double factor_a_diff = 111.0;
+    const double factor_delta_diff = 1000.0;
+    const double factor_a_diff = 1000.0;
     // 
     // 1) The cost: The cost is stored is the first element of `fg`
     fg[0] = 0;
@@ -91,7 +91,7 @@ class FG_eval {
     fg[1 + epsi_start] = vars[epsi_start];
 	
 	//    2.b) The rest of the constraints
-	int dly = int((letency_val+1.0)/(dt*1000.0));
+	int dly = int((letency_val+1.0)/(dt*1000.0*2.0)); // ggg
 	std::cout << "dly = " << dly << std::endl;
 	for (int i = 0; i < N - 1; i++) {
       // The state at time t+1 .
@@ -141,7 +141,10 @@ class FG_eval {
 //
 // MPC class definition implementation.
 //
-MPC::MPC() {}
+MPC::MPC() {
+  solution_x_.resize(N-1);
+  solution_y_.resize(N-1);
+}
 MPC::~MPC() {}
 
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
@@ -257,8 +260,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   //
   // 4) fill the predicted path to plot on the simulator
   for (int i=1; i<N; i++){
-    solution_x_.push_back(solution.x[i + x_start]);
-    solution_y_.push_back(solution.x[i + y_start]);
+    solution_x_[i-1] = solution.x[i + x_start];
+    solution_y_[i-1] = solution.x[i + y_start];
   }
   
   

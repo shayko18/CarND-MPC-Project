@@ -71,14 +71,12 @@ int main() {
   
   // MPC is initialized here!
   MPC mpc;
-  
-  h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
-                     uWS::OpCode opCode) {
+  h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
     string sdata = string(data).substr(0, length);
-    cout << sdata << endl;
+    cout << sdata << endl; // ggg
     if (sdata.size() > 2 && sdata[0] == '4' && sdata[1] == '2') {
       string s = hasData(sdata);
       if (s != "") {
@@ -126,7 +124,7 @@ int main() {
 		  //
 		  //   2.b) use the MPC to find the next state
 		  vector<double> next_state = mpc.Solve(state, coeffs);
-          double steer_value = -next_state[6]; // TODO ggg
+          double steer_value = (-next_state[6])/deg2rad(25); 
           double throttle_value = next_state[7];
 
           json msgJson;
@@ -155,7 +153,7 @@ int main() {
 
 
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          std::cout << msg << std::endl; // ggg
           // Latency
           // The purpose is to mimic real driving conditions where
           // the car does actuate the commands instantly.
@@ -165,7 +163,7 @@ int main() {
           //
           // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
           // SUBMITTING.
-          this_thread::sleep_for(chrono::milliseconds(100));
+          this_thread::sleep_for(chrono::milliseconds(100));  // ggg
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {
@@ -181,7 +179,7 @@ int main() {
   // doesn't compile :-(
   h.onHttpRequest([](uWS::HttpResponse *res, uWS::HttpRequest req, char *data,
                      size_t, size_t) {
-    const std::string s = "<h1>Hello world!</h1>";
+	const std::string s = "<h1>Hello world!</h1>";
     if (req.getUrl().valueLength == 1) {
       res->end(s.data(), s.length());
     } else {
