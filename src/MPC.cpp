@@ -7,8 +7,8 @@ using CppAD::AD;
 
 // Set the timestep length and duration
 size_t N = 10;             // number of samples
-double dt = 0.1;          // 0.1 is about 200 mSec in real time
-double letency_val = 100; // in mSec
+double dt = 0.2;          // 0.1 is about 100 mSec in real time
+//double letency_val = 100; // in mSec
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -23,7 +23,7 @@ double letency_val = 100; // in mSec
 const double Lf = 2.67;
 const double ref_cte = 0.0;
 const double ref_epsi = 0.0;
-const double ref_v = 30.0;
+const double ref_v = 20.0 * 0.44704; // in m/s
 
 // The solver takes all the state variables and actuator
 // variables in a singular vector. Thus, we should to establish
@@ -91,7 +91,7 @@ class FG_eval {
     fg[1 + epsi_start] = vars[epsi_start];
 	
 	//    2.b) The rest of the constraints
-	int dly = int((letency_val+1.0)/(dt*2000.0));
+	int dly = 0; //int((letency_val+1.0)/(dt*2000.0));
 	//std::cout << "dly = " << dly << std::endl;
 	for (int i = 0; i < N - 1; i++) {
       // The state at time t+1 .

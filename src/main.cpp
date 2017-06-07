@@ -90,6 +90,11 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+		  v *= 0.44704; // from MPH to m/sec
+		  
+		  double steer_value_input = j[1]["steering_angle"];
+		  double throttle_value_input = j[1]["throttle"];
+		  steer_value_input *= deg2rad(25); // deg to rnd
 		  
           // 
           // 1) We get the data in the "world" space so we need to transform them to the car space and then we work with them
@@ -117,9 +122,19 @@ int main() {
 
           // 
           // 2) Calculates steeering angle and throttle using MPC
-          //   2.a) current state vector (x,y,psi,v,cte,epsi) from the car point of view	
+          //   2.a) current state vector (x,y,psi,v,cte,epsi) from the car point of view.
+          //        we will calc the car position after 100 mSec delay in order to deal with the latency of 100 mSec	
+		  
 		  Eigen::VectorXd state(6);
-          state << 0.0, 0.0, 0.0, v, cte, epsi;
+		  double latency = 0.1;
+		  double Lf = 2.67;
+		  double x_dly = (0.0 + v * latency);
+		  double y_dly = 0.0;
+		  double psi_dly = 0.0 + v * steer_value_input / Lf * latency;
+		  double v_dly = 0.0 + v + throttle_value_input * latency;
+		  double cte_dly = cte + (v * sin(epsi) * latency);
+		  double epsi_dly = epsi + v * steer_value_input / Lf * latency;
+          state << x_dly, y_dly, psi_dly, v_dly, cte_dly, epsi_dly;
 		  
 		  //
 		  //   2.b) use the MPC to find the next state
@@ -162,7 +177,7 @@ int main() {
           //
           // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
           // SUBMITTING.
-          this_thread::sleep_for(chrono::milliseconds(100));
+          this_thread::sleep_for(chrono::milliseconds((int)(latency*1000)));
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {
