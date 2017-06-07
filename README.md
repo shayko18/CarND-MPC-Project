@@ -52,7 +52,7 @@ I tried a few options and this is what I came up with:
 
 - without latency: cost function factors = (1,1,1,1,100,100)
 - with latency: cost function factors = (1,1,1,1,1000,1000)
-- the v_ref was set to 30
+- the v_ref was set to 20
 
 Now we want to solve an **optimization problem**:
 
@@ -89,22 +89,19 @@ In the MPC we also save the (x,y) of the future position estimations for plottin
 when we want to deal with the latency we will have to pay in "high frequencies": the car would have to drive slower and will be able to deal with less sharp turns.
 In order to do that:
 
-1. We will tight the constraints on the steer and throttle changes. Actually we moved the factor on this, in the cost function, from 100 to 1000 when we added the latency.
-2. update the MPC equations so the a(t), delta(t) will now influence time t+latency: 
+1. We send to the optimaizer the prediction of the state 100ms (=latency) into the future in order to compensate for the latency. We will use the update equations and model errors in order to do that. (see lines 129-137 in main.cpp)
+			
+		Lf=2.67, latency=0.1 sec
+		  x_dly = (0.0 + v * latency);
+		  y_dly = 0.0;
+		  psi_dly = 0.0 + v * steer_value_input / Lf * latency;
+		  v_dly = 0.0 + v + throttle_value_input * latency;
+		  cte_dly = cte + (v * sin(epsi) * latency);
+		  epsi_dly = epsi + v * steer_value_input / Lf * latency;
 
- - a[n] will now be a[n-L] 
- - delta will now be delta[n-L]
- - and L should represent the latency is dt units
 
-	The equations for the model that are changed:
-
-		psi_[n+1] = psi[n] + v[n] / Lf * delta[n-L] * dt
-		v_[n+1] = v[n] + a[n-L] * dt
-		epsi[n+1] = psi[n] - atan(f'(x[n])) + v[n] * delta[n-L] / Lf * dt
-		
-		and fot n-L<0 we take both of them to be zero
-
-In our case we tried to understand what is the value of dt in real life seconds. It looks to me (after some measurements I did on the simulator) that dt=0.1 is about 200 mSec. This is why I set L to be 0 in the case of 100mSec latency. 
+2. We will tight the constraints on the steer and throttle changes. Actually we moved the factor on this, in the cost function, from 100 to 1000 when we added the latency.
+ 
 
 
 ## Dependencies
